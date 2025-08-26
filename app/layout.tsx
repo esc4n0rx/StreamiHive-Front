@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/contexts/auth-context"
 import { PWAInstall } from "@/components/ui/pwa-install"
 import { OfflineIndicator } from "@/components/ui/offline-indicator"
+import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "StreamHive",
   },
-    generator: 'v0.app'
+  generator: 'v0.app'
 }
 
 export default function RootLayout({
@@ -56,6 +57,7 @@ export default function RootLayout({
             {children}
             <PWAInstall />
             <OfflineIndicator />
+            <Toaster />
           </AuthProvider>
         </ThemeProvider>
       </body>

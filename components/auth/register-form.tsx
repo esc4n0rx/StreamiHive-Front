@@ -4,12 +4,16 @@ import type React from "react"
 
 import { useState } from "react"
 import { motion } from "framer-motion"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/contexts/auth-context"
-import { Eye, EyeOff, Mail, Lock, User, Calendar, AtSign } from "lucide-react"
+import { registerSchema, type RegisterFormData } from "@/utils/validation"
+import { Eye, EyeOff, Mail, Lock, User, Calendar, AtSign, FileText } from "lucide-react"
 
 interface RegisterFormProps {
   onToggleMode: () => void
@@ -19,43 +23,39 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
   const { register, isLoading } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    username: "",
-    birthDate: "",
-    password: "",
-    confirmPassword: "",
+
+  const form = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+    mode: "onChange", // Validate on change to show real-time validation
+    defaultValues: {
+      name: "",
+      username: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      birthDate: "",
+      bio: "",
+    },
   })
-  const [error, setError] = useState("")
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-
-    if (formData.password !== formData.confirmPassword) {
-      setError("As senhas não coincidem")
-      return
-    }
-
-    if (formData.password.length < 6) {
-      setError("A senha deve ter pelo menos 6 caracteres")
-      return
-    }
-
+  const onSubmit = async (data: RegisterFormData) => {
     try {
-      await register(formData)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao criar conta")
+      await register({
+        name: data.name,
+        username: data.username,
+        email: data.email,
+        password: data.password,
+        birthDate: data.birthDate,
+        bio: data.bio || undefined, // Convert empty string to undefined
+      })
+    } catch (error) {
+      // Error is handled in the context
     }
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }))
-  }
+  // Watch form values for validation
+  const watchedValues = form.watch()
+  const bioLength = watchedValues.bio?.length || 0
 
   return (
     <motion.div
@@ -70,143 +70,206 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
           <CardDescription>Crie sua conta para começar a usar o StreamHive</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Nome</Label>
+                <Label htmlFor="name">
+                  Nome <span className="text-destructive">*</span>
+                </Label>
                 <div className="relative">
                   <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="name"
-                    name="name"
-                    type="text"
                     placeholder="Seu nome"
-                    value={formData.name}
-                    onChange={handleChange}
                     className="pl-10"
-                    required
+                    {...form.register("name")}
+                    aria-invalid={!!form.formState.errors.name}
                   />
                 </div>
+                {form.formState.errors.name && (
+                  <p className="text-sm text-destructive">
+                    {form.formState.errors.name.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="username">Usuário</Label>
+                <Label htmlFor="username">
+                  Usuário <span className="text-destructive">*</span>
+                </Label>
                 <div className="relative">
                   <AtSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="username"
-                    name="username"
-                    type="text"
                     placeholder="seuusuario"
-                    value={formData.username}
-                    onChange={handleChange}
                     className="pl-10"
-                    required
+                    {...form.register("username")}
+                    aria-invalid={!!form.formState.errors.username}
                   />
                 </div>
+                {form.formState.errors.username && (
+                  <p className="text-sm text-destructive">
+                    {form.formState.errors.username.message}
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">
+                Email <span className="text-destructive">*</span>
+              </Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
-                  name="email"
                   type="email"
                   placeholder="seu@email.com"
-                  value={formData.email}
-                  onChange={handleChange}
                   className="pl-10"
-                  required
+                  {...form.register("email")}
+                  aria-invalid={!!form.formState.errors.email}
                 />
               </div>
+              {form.formState.errors.email && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.email.message}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="birthDate">Data de Nascimento</Label>
+              <Label htmlFor="birthDate">
+                Data de Nascimento <span className="text-destructive">*</span>
+              </Label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="birthDate"
-                  name="birthDate"
                   type="date"
-                  value={formData.birthDate}
-                  onChange={handleChange}
                   className="pl-10"
-                  required
+                  {...form.register("birthDate")}
+                  aria-invalid={!!form.formState.errors.birthDate}
                 />
               </div>
+              {form.formState.errors.birthDate && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.birthDate.message}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
+                <Label htmlFor="password">
+                  Senha <span className="text-destructive">*</span>
+                </Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="password"
-                    name="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Sua senha"
-                    value={formData.password}
-                    onChange={handleChange}
                     className="pl-10 pr-10"
-                    required
+                    {...form.register("password")}
+                    aria-invalid={!!form.formState.errors.password}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                {form.formState.errors.password && (
+                  <p className="text-sm text-destructive">
+                    {form.formState.errors.password.message}
+                  </p>
+                )}
+                {!form.formState.errors.password && watchedValues.password && (
+                  <p className="text-xs text-muted-foreground">
+                    Deve conter maiúsculas, minúsculas, números e símbolos
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+                <Label htmlFor="confirmPassword">
+                  Confirmar Senha <span className="text-destructive">*</span>
+                </Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="confirmPassword"
-                    name="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="Confirme sua senha"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
                     className="pl-10 pr-10"
-                    required
+                    {...form.register("confirmPassword")}
+                    aria-invalid={!!form.formState.errors.confirmPassword}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
                   >
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                {form.formState.errors.confirmPassword && (
+                  <p className="text-sm text-destructive">
+                    {form.formState.errors.confirmPassword.message}
+                  </p>
+                )}
               </div>
             </div>
 
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-destructive text-sm text-center"
-              >
-                {error}
-              </motion.div>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="bio" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Bio (opcional)
+              </Label>
+              <Textarea
+                id="bio"
+                placeholder="Conte um pouco sobre você..."
+                rows={3}
+                {...form.register("bio")}
+                maxLength={500}
+              />
+              <div className="flex justify-between items-center">
+                <p className="text-xs text-muted-foreground">
+                  {bioLength}/500 caracteres
+                </p>
+                {bioLength > 450 && (
+                  <p className="text-xs text-amber-500">
+                    Limite quase atingido
+                  </p>
+                )}
+              </div>
+              {form.formState.errors.bio && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.bio.message}
+                </p>
+              )}
+            </div>
 
-            <Button type="submit" className="w-full streamhive-button-accent" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full streamhive-button-accent" 
+              disabled={isLoading || !form.formState.isValid}
+            >
               {isLoading ? "Criando conta..." : "Criar conta"}
             </Button>
 
             <div className="text-center text-sm">
               <span className="text-muted-foreground">Já tem uma conta? </span>
-              <button type="button" onClick={onToggleMode} className="text-accent hover:text-accent/80 font-medium">
+              <button 
+                type="button" 
+                onClick={onToggleMode} 
+                className="text-accent hover:text-accent/80 font-medium"
+                disabled={isLoading}
+              >
                 Entrar
               </button>
             </div>

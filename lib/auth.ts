@@ -1,87 +1,135 @@
+import { authApiService } from './auth-api';
+import type { ApiUser } from '@/types/api.types';
+import type { LoginFormData, RegisterFormData, UpdateProfileFormData, ChangePasswordFormData } from '@/utils/validation';
+
 export interface User {
-  id: string
-  name: string
-  email: string
-  username: string
-  birthDate: string
-  createdAt: string
+  id: string;
+  name: string;
+  email: string;
+  username: string;
+  birthDate: string;
+  avatarUrl?: string;
+  bio?: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface AuthState {
-  user: User | null
-  isAuthenticated: boolean
-  isLoading: boolean
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 export interface LoginData {
-  email: string
-  password: string
+  username: string;
+  password: string;
 }
 
 export interface RegisterData {
-  name: string
-  email: string
-  username: string
-  birthDate: string
-  password: string
-  confirmPassword: string
+  name: string;
+  email: string;
+  username: string;
+  birthDate: string;
+  password: string;
+  bio?: string;
 }
 
-// Simulate API calls with localStorage
+// Transform ApiUser to User
+const transformApiUser = (apiUser: ApiUser): User => ({
+  id: apiUser.id,
+  name: apiUser.name,
+  email: apiUser.email,
+  username: apiUser.username,
+  birthDate: apiUser.birthDate,
+  avatarUrl: apiUser.avatarUrl,
+  bio: apiUser.bio,
+  createdAt: apiUser.createdAt,
+  updatedAt: apiUser.updatedAt,
+});
+
+// Updated auth service using API
 export const authService = {
   async login(data: LoginData): Promise<User> {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    const users = JSON.parse(localStorage.getItem("streamhive_users") || "[]")
-    const user = users.find((u: User & { password: string }) => u.email === data.email && u.password === data.password)
-
-    if (!user) {
-      throw new Error("Credenciais inválidas")
+    try {
+      const response = await authApiService.login({
+        username: data.username,
+        password: data.password,
+      });
+      return transformApiUser(response.user);
+    } catch (error) {
+      throw error;
     }
-
-    const { password, ...userWithoutPassword } = user
-    localStorage.setItem("streamhive_current_user", JSON.stringify(userWithoutPassword))
-    return userWithoutPassword
   },
 
   async register(data: RegisterData): Promise<User> {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    const users = JSON.parse(localStorage.getItem("streamhive_users") || "[]")
-
-    // Check if email or username already exists
-    const existingUser = users.find((u: User) => u.email === data.email || u.username === data.username)
-
-    if (existingUser) {
-      throw new Error("Email ou usuário já existe")
+    try {
+      const response = await authApiService.register({
+        name: data.name,
+        username: data.username,
+        email: data.email,
+        password: data.password,
+        birthDate: data.birthDate,
+        bio: data.bio,
+      });
+      return transformApiUser(response.user);
+    } catch (error) {
+      throw error;
     }
+  },
 
-    const newUser = {
-      id: Date.now().toString(),
-      name: data.name,
-      email: data.email,
-      username: data.username,
-      birthDate: data.birthDate,
-      password: data.password,
-      createdAt: new Date().toISOString(),
+  async updateProfile(data: Partial<UpdateProfileFormData>): Promise<User> {
+    try {
+      const response = await authApiService.updateProfile(data);
+      return transformApiUser(response);
+    } catch (error) {
+      throw error;
     }
+  },
 
-    users.push(newUser)
-    localStorage.setItem("streamhive_users", JSON.stringify(users))
+  async changePassword(data: { currentPassword: string; newPassword: string }): Promise<void> {
+    try {
+      await authApiService.changePassword(data);
+    } catch (error) {
+      throw error;
+    }
+  },
 
-    const { password, ...userWithoutPassword } = newUser
-    localStorage.setItem("streamhive_current_user", JSON.stringify(userWithoutPassword))
-    return userWithoutPassword
+  async deleteAccount(): Promise<void> {
+    try {
+      await authApiService.deleteAccount();
+    } catch (error) {
+      throw error;
+    }
   },
 
   async logout(): Promise<void> {
-    localStorage.removeItem("streamhive_current_user")
+    await authApiService.logout();
   },
 
   getCurrentUser(): User | null {
-    const userData = localStorage.getItem("streamhive_current_user")
-    return userData ? JSON.parse(userData) : null
+    const apiUser = authApiService.getCurrentUser();
+    return apiUser ? transformApiUser(apiUser) : null;
   },
-}
+
+  isAuthenticated(): boolean {
+    return authApiService.isAuthenticated();
+  },
+
+  async refreshProfile(): Promise<User> {
+    try {
+      const response = await authApiService.getProfile();
+      return transformApiUser(response);
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  async healthCheck(): Promise<boolean> {
+    try {
+      await authApiService.healthCheck();
+      return true;
+    } catch (error) {
+      return false;
+    }
+  },
+};
