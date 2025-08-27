@@ -4,14 +4,11 @@ import type React from "react"
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/contexts/auth-context"
-import { loginSchema, type LoginFormData } from "@/utils/validation"
 import { Eye, EyeOff, User, Lock } from "lucide-react"
 
 interface LoginFormProps {
@@ -21,20 +18,61 @@ interface LoginFormProps {
 export function LoginForm({ onToggleMode }: LoginFormProps) {
   const { login, isLoading } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const form = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      username: "",
-      password: "",
-    },
+  // Form state
+  const [formData, setFormData] = useState({
+    username: "",
+    password: "",
   })
 
-  const onSubmit = async (data: LoginFormData) => {
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: ""
+      }))
+    }
+  }
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+
+    // Username
+    if (!formData.username.trim()) {
+      newErrors.username = "Nome de usuário é obrigatório"
+    } else if (formData.username.trim().length < 3) {
+      newErrors.username = "Nome de usuário deve ter pelo menos 3 caracteres"
+    }
+
+    // Password
+    if (!formData.password) {
+      newErrors.password = "Senha é obrigatória"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!validateForm()) {
+      return
+    }
+
     try {
-      await login(data)
+      await login({
+        username: formData.username.trim(),
+        password: formData.password
+      })
     } catch (error) {
-      // Error is handled in the context
+      console.error('Login error:', error)
     }
   }
 
@@ -51,27 +89,33 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
           <CardDescription>Entre na sua conta para acessar o StreamHive</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Nome de usuário</Label>
+              <Label htmlFor="username">
+                Nome de usuário <span className="text-destructive">*</span>
+              </Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="username"
                   placeholder="seuusuario"
                   className="pl-10"
-                  {...form.register("username")}
+                  value={formData.username}
+                  onChange={(e) => handleInputChange("username", e.target.value)}
+                  aria-invalid={!!errors.username}
                 />
               </div>
-              {form.formState.errors.username && (
+              {errors.username && (
                 <p className="text-sm text-destructive">
-                  {form.formState.errors.username.message}
+                  {errors.username}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password">
+                Senha <span className="text-destructive">*</span>
+              </Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -79,30 +123,42 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
                   type={showPassword ? "text" : "password"}
                   placeholder="Sua senha"
                   className="pl-10 pr-10"
-                  {...form.register("password")}
+                  value={formData.password}
+                  onChange={(e) => handleInputChange("password", e.target.value)}
+                  aria-invalid={!!errors.password}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {form.formState.errors.password && (
+              {errors.password && (
                 <p className="text-sm text-destructive">
-                  {form.formState.errors.password.message}
+                  {errors.password}
                 </p>
               )}
             </div>
 
-            <Button type="submit" className="w-full streamhive-button-accent" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full streamhive-button-accent" 
+              disabled={isLoading}
+            >
               {isLoading ? "Entrando..." : "Entrar"}
             </Button>
 
             <div className="text-center text-sm">
               <span className="text-muted-foreground">Não tem uma conta? </span>
-              <button type="button" onClick={onToggleMode} className="text-accent hover:text-accent/80 font-medium">
+              <button 
+                type="button" 
+                onClick={onToggleMode} 
+                className="text-accent hover:text-accent/80 font-medium"
+                disabled={isLoading}
+              >
                 Registre-se
               </button>
             </div>

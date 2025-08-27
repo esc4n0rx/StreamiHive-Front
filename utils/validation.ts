@@ -12,7 +12,8 @@ export const loginSchema = z.object({
     .string()
     .min(1, 'Nome de usuário é obrigatório')
     .min(3, 'Nome de usuário deve ter pelo menos 3 caracteres')
-    .max(50, 'Nome de usuário deve ter no máximo 50 caracteres'),
+    .max(50, 'Nome de usuário deve ter no máximo 50 caracteres')
+    .trim(),
   password: z
     .string()
     .min(1, 'Senha é obrigatória'),
